@@ -111,14 +111,14 @@ export default class ThingsLogbookPlugin extends Plugin {
     const logbookRenderer = new LogbookRenderer(this.app, this.options);
     const dailyNotes = getAllDailyNotes();
     const latestSyncTime = this.options.latestSyncTime || 0;
-
+    const stopTime = window.moment.unix(latestSyncTime).startOf("day").unix();
     let taskRecords = [];
     let checklistRecords = [];
     try {
-      taskRecords = await getTasksFromThingsLogbook(latestSyncTime);
-      checklistRecords = await getChecklistItemsFromThingsLogbook(
-        latestSyncTime
-      );
+      console.debug(`[Things Logbook] Calling getTasksFromThingsLogbook(${stopTime}`);
+      taskRecords = await getTasksFromThingsLogbook(stopTime);
+      console.debug(`[Things Logbook] Calling getChecklistItemsFromThingsLogbook(${stopTime}`);
+      checklistRecords = await getChecklistItemsFromThingsLogbook(stopTime);
     } catch (err) {
       new Notice("Things Logbook sync failed");
       return;

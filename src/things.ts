@@ -77,7 +77,10 @@ export function buildTasksFromSQLRecords(
       title: title.trimEnd(),
     };
 
-    // checklist item might be completed before task
+    // Fetching checklists can be dicey - so rather than try to connect the dots on when they were
+    // checked individually (which Things3 doesn't even expose to the user) we'll just bring them
+    // back regardless
+
     if (task) {
       if (task.subtasks) {
         task.subtasks.push(subtask);
@@ -95,70 +98,67 @@ async function getTasksFromThingsDb(
 ): Promise<ITaskRecord[]> {
   return querySqliteDB<ITaskRecord>(
     thingsSqlitePath,
-    `SELECT
-        TMTask.uuid as uuid,
-        TMTask.title as title,
-        TMTask.notes as notes,
-        TMTask.startDate as startDate,
-        TMTask.stopDate as stopDate,
-        TMTask.status as status,
-        TMArea.title as area,
-        TMTag.title as tag
-    FROM
-        TMTask
-    LEFT JOIN TMTaskTag
-        ON TMTaskTag.tasks = TMTask.uuid
-    LEFT JOIN TMTag
-        ON TMTag.uuid = TMTaskTag.tags
-    LEFT JOIN TMArea
-        ON TMTask.area = TMArea.uuid
-    WHERE
-        TMTask.trashed = 0
-        AND TMTask.stopDate IS NOT NULL
-        AND TMTask.stopDate > ${latestSyncTime}
-    ORDER BY
-        TMTask.stopDate
-    LIMIT ${TASK_FETCH_LIMIT}
-        `
+    `
+Select    T.uuid as uuid
+         ,T.title as title
+         ,T.notes as notes
+         ,T.startDate as startDate
+         ,T.stopDate as stopDate
+         ,T.status as status
+         ,Ta.title as area
+         ,Tt.title as tag
+    From  TMTask As T
+    Left
+    Join  TMTaskTag As Ttt
+      On    T.uuid = Ttt.tasks
+   Left
+   Join   TMTag As Tt
+     On     Ttt.tags = Tt.uuid
+   Left
+   Join   TMArea As Ta
+     On      T.area = Ta.uuid
+   Where   T.trashed = 0
+     And   T.stopDate Is Not Null
+     And   T.stopDate > ${latestSyncTime}
+   Order
+     By    T.stopDate
+   Limit   ${TASK_FETCH_LIMIT}
+`
   );
 }
 
-async function getChecklistItemsThingsDb(
-  latestSyncTime: number
-): Promise<IChecklistItemRecord[]> {
-  return querySqliteDB<IChecklistItemRecord>(
-    thingsSqlitePath,
-    `SELECT
-        task as taskId,
-        title as title,
-        stopDate as stopDate
-    FROM
-        TMChecklistItem
-    WHERE
-        stopDate > ${latestSyncTime}
-        AND title IS NOT ""
-    ORDER BY
-        stopDate
-    LIMIT ${TASK_FETCH_LIMIT}
-        `
+async function getChecklistItemsThingsDb(latestSyncTime: number): Promise<IChecklistItemRecord[]> {
+  return querySqliteDB<IChecklistItemRecord>(thingsSqlitePath,
+    `
+Select     CL.task As taskId
+          ,CL.title As title
+          ,T.stopDate As stopDate
+   From    TMChecklistItem As CL
+   Join    TMTask As T
+    On       CL.task = T.uuid
+   Where   CL.status = 3
+     And   T.stopDate > ${latestSyncTime}
+     And   CL.title Is Not ""
+   Order
+      By   T.stopDate
+   Limit   ${TASK_FETCH_LIMIT}
+`
   );
 }
 
-export async function getTasksFromThingsLogbook(
-  latestSyncTime: number
-): Promise<ITaskRecord[]> {
+export async function getTasksFromThingsLogbook(latestSyncTime: number): Promise<ITaskRecord[]> {
   const taskRecords: ITaskRecord[] = [];
   let isSyncCompleted = false;
-  let stopTime = window.moment.unix(latestSyncTime).startOf("day").unix();
 
   try {
-    while (!isSyncCompleted) {
-      console.debug("[Things Logbook] fetching tasks from sqlite db...");
 
-      const batch = await getTasksFromThingsDb(stopTime);
+    while (!isSyncCompleted) {
+
+      const batch = await getTasksFromThingsDb(latestSyncTime);
 
       isSyncCompleted = batch.length < TASK_FETCH_LIMIT;
-      stopTime = batch.filter((t) => t.stopDate).last()?.stopDate;
+      // Filtering seems to be wierd. Commenting out for now
+      //stopTime = batch.filter((t) => t.stopDate).last()?.stopDate;
 
       taskRecords.push(...batch);
       console.debug(
@@ -173,23 +173,21 @@ export async function getTasksFromThingsLogbook(
   return taskRecords;
 }
 
-export async function getChecklistItemsFromThingsLogbook(
-  latestSyncTime: number
-): Promise<IChecklistItemRecord[]> {
+export async function getChecklistItemsFromThingsLogbook(latestSyncTime: number): Promise<IChecklistItemRecord[]> {
   const checklistItems: IChecklistItemRecord[] = [];
   let isSyncCompleted = false;
-  let stopTime = latestSyncTime;
 
   try {
     while (!isSyncCompleted) {
       console.debug(
-        "[Things Logbook] fetching checklist items from sqlite db..."
+        `[Things Logbook] fetching checklist items from sqlite db with stopTime of ${latestSyncTime}`
       );
 
-      const batch = await getChecklistItemsThingsDb(stopTime);
+      const batch = await getChecklistItemsThingsDb(latestSyncTime);
 
       isSyncCompleted = batch.length < TASK_FETCH_LIMIT;
-      stopTime = batch.filter((t) => t.stopDate).last()?.stopDate;
+      // Filtering seems to be wierd. Commenting out for now
+      //stopTime = batch.filter((t) => t.stopDate).last()?.stopDate;
 
       checklistItems.push(...batch);
       console.debug(
