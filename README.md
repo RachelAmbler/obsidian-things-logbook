@@ -1,5 +1,7 @@
 # 📕 Things Logbook for Obsidian
 
+[![Build plugin](https://github.com/RachelAmbler/obsidian-things-logbook/actions/workflows/publish.yml/badge.svg)](https://github.com/RachelAmbler/obsidian-things-logbook/actions/workflows/publish.yml)
+
 This plugin for [Obsidian](https://obsidian.md/) will periodically sync your [Things](https://culturedcode.com/things/) Logbook with your Obsidian Daily Notes.
 
 ## Why?
