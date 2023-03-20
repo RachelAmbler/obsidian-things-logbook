@@ -1,4 +1,8 @@
 name: Release Obsidian Plugin
+
+env:
+ CI: true
+ 
 on:
   release:
     types: [created]
