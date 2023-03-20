@@ -21,10 +21,11 @@ jobs:
       with:
         node-version: '14.x' # You might need to adjust this value to your own version
     # Get the version number and put it in a variable
+    # echo "::set-output name=tag::$(git describe --abbrev=0)"
     - name: Get Version
       id: version
       run: |
-        echo "::set-output name=tag::$(git describe --abbrev=0)"
+        echo "name=$(git describe --abbrev=0)" >> $GITHUB_OUTPUT
     # Build the plugin
     - name: Build
       id: build
