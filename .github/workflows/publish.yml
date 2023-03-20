@@ -29,7 +29,7 @@ jobs:
     - name: Get Version
       id: version
       run: |
-        echo "name=$(git describe --abbrev=0)" >> $GITHUB_OUTPUT
+        echo "name=2.0.0" >> $GITHUB_OUTPUT
     # Build the plugin
     - name: Build
       id: build
